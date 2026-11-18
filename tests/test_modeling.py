@@ -4,7 +4,10 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from xgboost import XGBClassifier
+try:
+    from xgboost import XGBClassifier
+except ImportError:
+    XGBClassifier = None
 
 from map_matching.features import FEATURE_COLUMNS
 from map_matching.modeling import CandidateScorer, nearest_candidate_baseline, prepare_training_table
@@ -23,6 +26,8 @@ def test_training_keeps_unlabelled_rows_out():
 
 
 def test_xgboost_cuda_model_can_be_loaded_and_predicted_on_cpu():
+    if XGBClassifier is None:
+        pytest.skip("xgboost is not installed in this test environment")
     x = np.random.default_rng(7).random((100, len(FEATURE_COLUMNS)))
     y = (x[:, 0] > 0.5).astype(int)
     model = XGBClassifier(n_estimators=5, max_depth=2, device="cuda",

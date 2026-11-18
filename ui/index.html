@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PathSnap evaluator</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #15222e; background: #f4f7fa; }
+    body { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    header, section { background: white; border: 1px solid #d8e0e7; border-radius: 12px; padding: 18px; margin: 16px 0; }
+    h1 { margin: 0 0 6px; } .muted { color: #607080; } .ok { color: #146c43; } .error { color: #b42318; }
+    label, button, select { font: inherit; } select { min-width: 180px; padding: 7px; }
+    button { margin-left: 8px; padding: 8px 14px; background: #145da0; color: white; border: 0; border-radius: 6px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: progress; } #map { width: 100%; min-height: 520px; background: #f9fbfd; border: 1px solid #d8e0e7; border-radius: 8px; }
+    svg { display: block; width: 100%; height: 520px; } .gps { fill: #2878b5; opacity: .75; } .route { stroke: #d44a3a; stroke-width: 2.3; stroke-linecap: round; opacity: .85; }
+    #summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 10px; } .metric { background: #f4f7fa; padding: 10px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PathSnap route reconstruction</h1>
+    <p class="muted">Select an available evaluator trip. GPS observations are shown in blue and the model’s HMM-decoded route in red.</p>
+    <label for="trip">Trip</label>
+    <select id="trip" aria-label="Evaluator trip"><option>Loading options…</option></select>
+    <button id="match" disabled>Match route</button>
+    <p id="status" class="muted" role="status">Connecting to Laptop 1 API…</p>
+  </header>
+  <section>
+    <div id="summary" aria-live="polite"></div>
+    <div id="map" aria-label="GPS and predicted route map"></div>
+  </section>
+  <script src="config.js"></script>
+  <script>
+    const base = window.PATHSNAP_API_BASE.replace(/\/$/, "");
+    const tripSelect = document.querySelector("#trip");
+    const matchButton = document.querySelector("#match");
+    const status = document.querySelector("#status");
+    const map = document.querySelector("#map");
+    const summary = document.querySelector("#summary");
+
+    function setStatus(message, kind = "muted") { status.className = kind; status.textContent = message; }
+    async function request(path, options) {
+      const response = await fetch(base + path, options);
+      if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || `HTTP ${response.status}`); }
+      return response.json();
+    }
+    function draw(result) {
+      const points = [...result.gps.map(p => [p.lon, p.lat]), ...result.predicted_route.flatMap(s => [[s.from.lon, s.from.lat], [s.to.lon, s.to.lat]])];
+      if (!points.length) { map.textContent = "No mappable predictions were returned."; return; }
+      const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
+      const pad = .05, xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+      const dx = Math.max(xmax - xmin, 1e-9), dy = Math.max(ymax - ymin, 1e-9);
+      const project = ([x, y]) => [pad * 100 + (x - xmin) / dx * (100 - 2 * pad * 100), 100 - pad * 100 - (y - ymin) / dy * (100 - 2 * pad * 100)];
+      const route = result.predicted_route.map(s => { const a = project([s.from.lon, s.from.lat]), b = project([s.to.lon, s.to.lat]); return `<line class="route" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"/>`; }).join("");
+      const gps = result.gps.map(p => { const [x, y] = project([p.lon, p.lat]); return `<circle class="gps" cx="${x}" cy="${y}" r=".45"><title>Observation ${p.obs_idx}</title></circle>`; }).join("");
+      map.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Blue GPS observations and red predicted road segments">${route}${gps}</svg>`;
+    }
+    function renderSummary(d) {
+      summary.innerHTML = Object.entries(d).map(([key, value]) => `<div class="metric"><strong>${key.replaceAll("_", " ")}</strong><br>${value}</div>`).join("");
+    }
+    async function loadTrips() {
+      try {
+        const health = await request("/health");
+        const options = await request("/api/trips");
+        tripSelect.innerHTML = options.trips.map(t => `<option value="${t.trip_id}">${t.trip_id}</option>`).join("");
+        matchButton.disabled = !options.trips.length;
+        setStatus(`Laptop 1 API is ready; ${health.available_trips} trip option(s) available.`, "ok");
+      } catch (error) { tripSelect.innerHTML = "<option>Unavailable</option>"; setStatus(`Could not reach Laptop 1: ${error.message}`, "error"); }
+    }
+    matchButton.addEventListener("click", async () => {
+      matchButton.disabled = true; setStatus(`Matching trip ${tripSelect.value}…`);
+      try {
+        const result = await request("/api/match", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({trip_id: tripSelect.value})});
+        draw(result); renderSummary(result.diagnostics); setStatus(`Trip ${result.trip_id} decoded successfully.`, "ok");
+      } catch (error) { setStatus(`Matching failed: ${error.message}`, "error"); }
+      finally { matchButton.disabled = false; }
+    });
+    loadTrips();
+  </script>
+</body>
+</html>

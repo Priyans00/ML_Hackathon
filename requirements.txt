@@ -7,3 +7,7 @@ networkx
 folium
 matplotlib
 xgboost
+fastapi
+uvicorn[standard]
+httpx
+pytest

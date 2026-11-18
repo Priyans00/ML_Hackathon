@@ -16,7 +16,10 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, WhiteKernel
-from xgboost import XGBClassifier
+try:  # Keep CPU-only inference usable when the optional GPU experiment is absent.
+    from xgboost import XGBClassifier
+except ImportError:  # pragma: no cover - covered by the declared production dependency
+    XGBClassifier = None
 
 from map_matching.features import FEATURE_COLUMNS
 
@@ -29,12 +32,13 @@ EXPERIMENTS = {
     "random_forest_balanced": RandomForestClassifier(
         n_estimators=150, min_samples_leaf=2, class_weight="balanced", n_jobs=-1, random_state=7
     ),
-    "xgboost_gpu": XGBClassifier(
+}
+if XGBClassifier is not None:
+    EXPERIMENTS["xgboost_gpu"] = XGBClassifier(
         n_estimators=180, max_depth=6, learning_rate=0.08, subsample=0.9,
         colsample_bytree=0.9, eval_metric="logloss", tree_method="hist",
         device="cuda", random_state=7,
-    ),
-}
+    )
 
 
 def prepare_training_table(table):
@@ -106,7 +110,7 @@ def grouped_experiments(table, n_splits=5, verbose=True):
 
 def _predict_for_model(model, x):
     """Run prediction safely across CPU/CUDA XGBoost boundaries."""
-    if isinstance(model, XGBClassifier):
+    if XGBClassifier is not None and isinstance(model, XGBClassifier):
         model.set_params(device="cpu")
         model.get_booster().set_param({"device": "cpu"})
     return model.predict(x)
@@ -244,7 +248,7 @@ class CandidateScorer:
             raise ValueError("missing feature columns: " + ", ".join(sorted(missing)))
         x = feature_table[self.bundle["feature_columns"]]
         model = self.bundle["model"]
-        if isinstance(model, XGBClassifier):
+        if XGBClassifier is not None and isinstance(model, XGBClassifier):
             model.set_params(device="cpu")
             model.get_booster().set_param({"device": "cpu"})
         score = model.predict_proba(x)[:, -1]
