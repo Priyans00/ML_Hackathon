@@ -19,6 +19,7 @@ def create_app(service: PathSnapService | None = None) -> FastAPI:
     logging.basicConfig(level=os.getenv("PATHSNAP_LOG_LEVEL", "INFO").upper(),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     evaluator_split = os.getenv("PATHSNAP_EVALUATOR_SPLIT", "student_test")
+    data_root = os.getenv("PATHSNAP_DATA_ROOT")
     # Importing this module must not deserialize the model. In particular, API
     # tests can inject a small fake service and Uvicorn can finish starting
     # before the first inference request. The real service is cached per app.
@@ -27,7 +28,10 @@ def create_app(service: PathSnapService | None = None) -> FastAPI:
     def get_service():
         nonlocal loaded_service
         if loaded_service is None:
-            loaded_service = PathSnapService(evaluator_split=evaluator_split)
+            loaded_service = PathSnapService(
+                evaluator_split=evaluator_split,
+                data_root=data_root or None,
+            )
         return loaded_service
     app = FastAPI(title="PathSnap API", version="1.0.0")
     origins = [origin.strip() for origin in os.getenv("PATHSNAP_CORS_ORIGINS", "*").split(",")]

@@ -7,14 +7,16 @@ feature builder, trained scorer, and decoder required for inference.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 import pandas as pd
 
 from map_matching.candidates import CandidateConfig
-from map_matching.decoder import DecoderConfig, ViterbiDecoder
+from map_matching.decoder import DecoderConfig, ViterbiDecoder, continuity_metrics
 from map_matching.features import build_feature_table
 from map_matching.modeling import CandidateScorer
+from data_processing.label_alignment import label_trip
 from utils.data_loader import DATA_ROOT, load_trip
 
 
@@ -35,6 +37,8 @@ class PathSnapService:
                  scorer=None, candidate_config: CandidateConfig | None = None,
                  decoder_config: DecoderConfig | None = None):
         self.model_path = Path(model_path)
+        if data_root is None:
+            data_root = os.getenv("PATHSNAP_DATA_ROOT", DATA_ROOT)
         self.data_root = Path(data_root)
         self.evaluator_split = evaluator_split
         self.scorer = scorer or CandidateScorer.load(self.model_path)
@@ -87,6 +91,44 @@ class PathSnapService:
             })
         return rows
 
+    def _server_evaluation(self, trip, features, scored, decoded) -> dict:
+        """Calculate permitted server-side diagnostics without exposing labels."""
+        if trip.route.empty:
+            return {}
+        labels, _ = label_trip(trip)
+        classifier = scored.sort_values(
+            ["obs_idx", "score", "candidate_rank", "arc_id"],
+            ascending=[True, False, True, True],
+            kind="mergesort",
+        ).groupby("obs_idx", as_index=False).first()
+        classifier_decision = classifier[["obs_idx", "arc_id"]]
+
+        def arc_accuracy(selection):
+            compared = selection.merge(
+                labels[["obs_idx", "true_arc_id"]],
+                on="obs_idx",
+                how="inner",
+            )
+            compared = compared[compared.true_arc_id >= 0]
+            if compared.empty:
+                return None
+            return round(float((compared.arc_id == compared.true_arc_id).mean()), 6)
+
+        decoder_input = features.merge(
+            scored[["obs_idx", "arc_id", "score"]],
+            on=["obs_idx", "arc_id"],
+            how="inner",
+            validate="one_to_one",
+        )
+        decoded_continuity = continuity_metrics(decoded, decoder_input, trip, self.decoder_config)
+        return {
+            "classifier_arc_accuracy": arc_accuracy(classifier_decision),
+            "decoded_arc_accuracy": arc_accuracy(decoded[["obs_idx", "arc_id"]]),
+            "decoded_plausible_transition_rate":
+                None if pd.isna(decoded_continuity["plausible_transition_rate"])
+                else round(float(decoded_continuity["plausible_transition_rate"]), 6),
+        }
+
     def match(self, trip_id: str) -> dict:
         """Run the label-free candidate, scoring, and HMM pipeline for one trip."""
         self._require_trip(trip_id)
@@ -109,7 +151,7 @@ class PathSnapService:
         LOGGER.info("trip=%s observations=%d candidates=%d decoded=%d segments=%d",
                     trip_id, len(trip.track), len(features), len(decoded),
                     decoded.segment_id.nunique() if not decoded.empty else 0)
-        return {
+        result = {
             "trip_id": trip_id,
             "gps": [
                 {"obs_idx": int(row.obs_idx), "t": float(row.t),
@@ -124,3 +166,7 @@ class PathSnapService:
                 "n_segments": int(decoded.segment_id.nunique()) if not decoded.empty else 0,
             },
         }
+        result["diagnostics"].update(self._server_evaluation(
+            trip, features, scored, decoded
+        ))
+        return result

@@ -90,9 +90,10 @@ def generate_candidates(trip, config=None, index=None):
         found.insert(0, "trip_id", trip.trip_id)
         found["t"] = float(obs.t)
         found["lon"], found["lat"] = float(obs.lon), float(obs.lat)
+        found["x"], found["y"] = float(obs.x), float(obs.y)
         rows.append(found)
     columns = [
         "trip_id", "obs_idx", "t", "lon", "lat", "arc_id",
-        "candidate_rank", "distance_m", "projection_fraction",
+        "candidate_rank", "distance_m", "projection_fraction", "x", "y",
     ]
     return pd.concat(rows, ignore_index=True)[columns] if rows else pd.DataFrame(columns=columns)

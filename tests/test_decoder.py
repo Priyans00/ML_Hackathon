@@ -50,3 +50,14 @@ def test_large_gps_gap_restarts_without_dropping_predictions():
     decoded = ViterbiDecoder(FakeTrip(), DecoderConfig(reset_gap_s=60)).decode(candidates)
     assert decoded.arc_id.tolist() == [0, 1]
     assert decoded.segment_id.tolist() == [0, 1]
+
+
+def test_internal_impossible_transition_does_not_truncate_results():
+    candidates = _rows([
+        (0, 0, 0.1, 0.8, 0.0, 1.0, 0.0),
+        (1, 2, 0.1, 0.8, 1.0, 20.0, 0.0),
+        (2, 1, 0.1, 0.8, 2.0, 21.0, 0.0),
+    ])
+    decoded = ViterbiDecoder(FakeTrip()).decode(candidates)
+    assert decoded.obs_idx.tolist() == [0, 1, 2]
+    assert len(decoded.segment_id.unique()) >= 1

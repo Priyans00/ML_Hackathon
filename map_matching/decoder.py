@@ -188,7 +188,12 @@ class ViterbiDecoder:
                     current_scores[current_idx] = emissions[current_idx] + best_score
                     pointers[current_idx] = best_idx
             if not np.isfinite(current_scores).any():
-                raise RuntimeError("segment contains an impossible transition")
+                # Split into independently decodable subsegments.  Emission-only
+                # decoding of the suffix is retained rather than discarding
+                # later GPS observations or inventing a transition.
+                before = self._decode_segment(groups[:index], segment_id)
+                after = self._decode_segment(groups[index:], segment_id + 1)
+                return before + after
             scores.append(current_scores)
             backpointers.append(pointers)
 

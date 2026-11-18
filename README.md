@@ -78,25 +78,82 @@ It writes per-trip and aggregate candidate-only versus decoded-route metrics to
 
 ## Two-laptop run
 
-On Laptop 1, place the model, raw road-network data, and this repository. Set
-the evaluator split only to the server-side folder supplied by the organisers,
-then expose the API on the LAN:
+The commands below are for Windows PowerShell.
 
-```bash
-export PATHSNAP_EVALUATOR_SPLIT=student_test  # replace only for official server-side evaluator data
-export PATHSNAP_CORS_ORIGINS=http://LAPTOP_2_LAN_IP:8080
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+### Laptop 1: API, model and road network
+
+```powershell
+cd C:\path\to\ML_Hackathon
+
+py -3.10 -m venv .venv
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pytest -q
+
+# Put official server-side data in C:\path\to\ML_Hackathon\evaluator_test.
+# DATA_ROOT is the parent directory of that evaluator_test folder.
+$env:PATHSNAP_DATA_ROOT = "C:\path\to\ML_Hackathon"
+$env:PATHSNAP_EVALUATOR_SPLIT = "evaluator_test"
+
+# Replace with Laptop 2's actual LAN IP and UI port.
+$env:PATHSNAP_CORS_ORIGINS = "http://192.168.1.50:8080"
+
+# Find this laptop's IPv4 address.
+ipconfig
+
+# Run once in an elevated PowerShell if Windows Firewall blocks TCP 8000.
+New-NetFirewallRule -DisplayName "PathSnap API 8000" -Direction Inbound `
+  -Protocol TCP -LocalPort 8000 -Action Allow
+
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-On Laptop 2, edit the single non-secret URL in `ui/config.js` to Laptop 1's
-LAN address, for example `http://192.168.1.42:8000`, then serve the UI:
+Verify from Laptop 1 or Laptop 2:
 
-```bash
+```powershell
+Invoke-RestMethod "http://192.168.1.40:8000/health"
+Invoke-RestMethod "http://192.168.1.40:8000/api/trips"
+```
+
+Use the actual IPv4 address printed by `ipconfig`; the example `192.168.1.40`
+is only a placeholder.
+
+Keep the Laptop 1 terminal visible during the evaluator demonstration. It
+logs every matching request and shows the API endpoint activity.
+
+### Laptop 2: evaluator UI
+
+```powershell
+cd C:\path\to\ML_Hackathon
+
+py -3.10 -m venv .venv
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install fastapi uvicorn
+```
+
+Edit `ui/config.js`:
+
+```javascript
+// Replace the address with Laptop 1's actual LAN IPv4 address.
+window.PATHSNAP_API_BASE = "http://192.168.1.40:8000";
+```
+
+Then start and open the UI:
+
+```powershell
 python -m http.server 8080 --directory ui
+# Open http://localhost:8080 in a browser on Laptop 2.
 ```
 
-Open `http://LAPTOP_2_LAN_IP:8080`. Details, firewall checks, and the honest
-deployment-verification status are in `docs/DEPLOYMENT.md`.
+If Laptop 2 and its browser are different machines, replace `localhost` with
+Laptop 2's own LAN IPv4 address when opening the UI.
+
+Laptop 2 must call Laptop 1 over the LAN. It does not receive evaluator
+reference routes or model artifacts.
 
 ## Tests
 

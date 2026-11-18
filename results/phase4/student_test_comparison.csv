@@ -1,0 +1,2 @@
+split,n_observations,n_candidates,n_evaluated_observations,n_decoded,classifier_arc_accuracy,decoded_arc_accuracy,classifier_plausible_transition_rate,decoded_plausible_transition_rate,classifier_pairs,decoded_pairs,decoded_segments
+student_test,1916.0,12551.9,1913.3,1916.0,0.822159061080686,0.8197020237179498,0.9290545329264276,0.9964440764765387,1915.0,1915.0,9.9

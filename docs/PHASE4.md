@@ -88,3 +88,12 @@ The classifier answers “which roads look locally plausible?” The HMM answers
 directed road network at the observed pace?” Viterbi finds the globally
 highest-scoring such sequence efficiently by retaining only the best partial
 path ending at each candidate state.
+
+## Actual permitted-development results
+
+The student-test run produced 19,163 observations across 10 trips. Mean
+classifier-only arc accuracy was 82.2159%. Mean HMM/Viterbi decoded arc accuracy
+was 81.9702%, a mean change of -0.2457 percentage points. Mean decoded plausible
+transition rate was 99.6444%, versus 92.9055% for independent classifier choices.
+No trip lost observations after the decoder reset fix; every trip's `n_decoded`
+equals `n_observations` in `results/phase4/student_test_per_trip.csv`.
