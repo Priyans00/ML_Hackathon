@@ -1,0 +1,14 @@
+Trips: train=80, student_test=10
+GPS observations: total=227577, per trip median=1496, min=262, max=19313
+Missing values: track NaN=0, node NaN=0
+Timestamps non-increasing: 0
+Sampling: 96.7% of steps are exactly 1 s; 1260 gaps > 5 s in 47 trips; 135 gaps > 30 s in 30 trips; largest gap 42.5 h
+Implied speed > 50 m/s (GPS jumps): 1541 steps in 42 trips
+Road network: nodes median=9305 (max 155003), arcs median=18762 (max 307392)
+Isolated nodes: 0; self-loops: 24; duplicate arcs: 1903; zero-length arcs: 106
+Weakly connected components per trip: median=19, max=421
+Largest strongly connected component: median 96.4% of nodes
+Two-way arcs: median 95.1% of arcs
+Reference route: 34813 arcs total; discontinuities (end node != next start node): 14 in 11 trips
+Labels: 10.19% of observations unlabelled (>50 m from route); median distance to labelled arc 5.0 m, 95th pct 17.4 m
+Unlabelled observations are concentrated in trips 00000054 (89%), 00000033 (59%), 00000002 (12%)
