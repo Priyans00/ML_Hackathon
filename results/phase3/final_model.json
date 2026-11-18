@@ -1,0 +1,25 @@
+{
+  "model": "ExtraTreesClassifier",
+  "feature_columns": [
+    "candidate_rank",
+    "distance_m",
+    "projection_fraction",
+    "arc_length_m",
+    "candidate_bearing_deg",
+    "gps_heading_deg",
+    "heading_error_deg",
+    "gps_step_m",
+    "dt_s",
+    "gps_speed_mps"
+  ],
+  "hyperparameters": {
+    "n_estimators": 152,
+    "max_depth": 10,
+    "min_samples_leaf": 4,
+    "max_features": 0.6923585529
+  },
+  "classes": [
+    0,
+    1
+  ]
+}

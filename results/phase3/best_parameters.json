@@ -1,0 +1,9 @@
+{
+  "trial":6.0,
+  "n_estimators":152.0,
+  "max_depth":10.0,
+  "min_samples_leaf":4.0,
+  "max_features":0.6923585529,
+  "macro_f1":0.8655974999,
+  "duration_s":221.3150358
+}

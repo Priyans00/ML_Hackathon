@@ -1,0 +1,2 @@
+experiment,model,accuracy,macro_f1,n_observations
+nearest_road_baseline,rank1_nearest_candidate,0.5528949442387209,0.35604143492769746,185254
