@@ -1,0 +1,8 @@
+# generated data: rebuild with the scripts in data_processing/
+data/processed/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
