@@ -50,8 +50,10 @@ def point_segment_distance(px, py, ax, ay, bx, by):
     """
     abx, aby = bx - ax, by - ay
     seg_len2 = abx * abx + aby * aby
+    numerator = (px - ax) * abx + (py - ay) * aby
     with np.errstate(invalid="ignore", divide="ignore"):
-        t = ((px - ax) * abx + (py - ay) * aby) / seg_len2
+        t = np.divide(numerator, seg_len2, out=np.zeros_like(np.asarray(numerator, dtype=float)),
+                      where=np.asarray(seg_len2) != 0)
     t = np.where(seg_len2 > 0, np.clip(t, 0.0, 1.0), 0.0)
     cx, cy = ax + t * abx, ay + t * aby
     return np.hypot(px - cx, py - cy), t

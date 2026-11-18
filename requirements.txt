@@ -6,3 +6,4 @@ shapely
 networkx
 folium
 matplotlib
+xgboost
